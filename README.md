@@ -10,5 +10,7 @@ git clone git@github.com:Mikkou/white-server.git
 
 cd white-server/
 
+cp env .env
+
 node index.js
 ```
