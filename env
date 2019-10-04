@@ -1,1 +1,3 @@
 DBHost=(host)
+EMAIL_USER=(email)
+EMAIL_PASSWORD=(password)

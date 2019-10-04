@@ -7,7 +7,7 @@ let UserSchema = new Schema(
     lastName: { type: String, required: true },
     email: { type: String, required: true },
     password: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now }
   },
   {
     versionKey: false
@@ -15,9 +15,8 @@ let UserSchema = new Schema(
 )
 
 UserSchema.pre('save', next => {
-  now = new Date()
   if (!this.createdAt) {
-    this.createdAt = now
+    this.createdAt = new Date()
   }
   next()
 })

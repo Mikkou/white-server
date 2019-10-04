@@ -3,8 +3,7 @@ let user = require('./user')
 
 const router = Router()
 
-router.get('/v1/auth', user.getUsers)
-router.post('/v1/auth', user.postUser)
+router.post('/v1/register', user.register)
 
 router.get('/v1/user/:id', user.getUser)
 router.delete('/v1/user/:id', user.deleteUser)

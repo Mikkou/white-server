@@ -1,32 +1,69 @@
-let User = require('../models/user')
+let User = require('../models/user'),
+  bcrypt = require('bcrypt'),
+  nodeMailer = require('nodemailer')
+require('dotenv').config()
 
 /*
- * GET /users route to retrieve all the books.
+ * POST /register to save a new user.
  */
-function getUsers (req, res) {
-  //Query the DB and if no errors, send all the books
-  let query = User.find({})
-  query.exec((err, books) => {
-    if (err) res.send(err)
-    //If no errors, send them back to the client
-    res.json(books)
-  })
-}
+function register (req, res) {
 
-/*
- * POST /auth to save a new book.
- */
-function postUser (req, res) {
-  //Creates a new book
-  let newUser = new User(req.body)
-  //Save it into the DB.
-  newUser.save((err, user) => {
-    if (err) {
-      res.send(err)
-    } else { //If no errors, send it back to the client
-      res.json({ message: 'User successfully added!', user })
-    }
+  const errors = []
+
+  if (!req.body.firstName) errors.push('Поле имя обязательно для заполнения')
+  if (req.body.firstName.length > 20) errors.push('Поле имя не может содержать более 20 символов')
+
+  if (!req.body.lastName) errors.push('Поле имя обязательно для заполнения')
+  if (req.body.lastName.length > 20) errors.push('Поле имя не может содержать более 20 символов')
+
+  if (!req.body.email) errors.push('Поле почты обязательно для заполнения')
+  if (req.body.email.length > 30) errors.push('Поле почты не может содержать более 20 символов')
+  if (!/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/.test(req.body.email)) errors.push('Почта невалидна')
+
+  if (!req.body.password) errors.push('Поле пароля обязательно для заполнения')
+  if (req.body.password.length >= 20 || req.body.password.length <= 8) errors.push('Поле пароля должно содержать от 8 до 20 символов')
+
+  if (errors.length > 0) {
+    res.json({ errors: errors })
+    return
+  }
+
+  bcrypt.hash(req.body.password, 10, (err, hash) => {
+
+    const password = req.body.password
+    req.body.password = hash
+
+    let newUser = new User(req.body)
+    newUser.save((err) => {
+      if (err) {
+        res.send(err)
+      } else {
+        let transporter = nodeMailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+          }
+        })
+        let mailOptions = {
+          to: req.body.email,
+          subject: 'Welcome to the white application!',
+          body: `Your login - ${req.body.email}, password - ${password}`
+        }
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            return console.log(error)
+          }
+          console.log('Message %s sent: %s', info.messageId, info.response)
+        })
+        res.json({ success: true })
+      }
+    })
   })
+
+
 }
 
 /*
@@ -63,4 +100,4 @@ function updateUser (req, res) {
 }
 
 //export all the functions
-module.exports = { getUsers, postUser, getUser, deleteUser, updateUser }
+module.exports = { register, getUser, deleteUser, updateUser }
