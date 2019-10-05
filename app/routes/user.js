@@ -1,12 +1,13 @@
-let User = require('../models/user'),
-  bcrypt = require('bcrypt'),
-  nodeMailer = require('nodemailer')
+const User = require('../models/user')
+const bcrypt = require('bcrypt')
+const nodeMailer = require('nodemailer')
+const jwt = require('jsonwebtoken')
 require('dotenv').config()
 
 /*
  * POST /register to save a new user.
  */
-function register (req, res) {
+async function register (req, res) {
 
   const errors = []
 
@@ -23,48 +24,64 @@ function register (req, res) {
   if (!req.body.password) errors.push('Поле пароля обязательно для заполнения')
   if (req.body.password.length >= 20 || req.body.password.length <= 8) errors.push('Поле пароля должно содержать от 8 до 20 символов')
 
+  if ((await User.find({ email: req.body.email }, (err, res) => res)).length > 0) errors.push('Эта почта занята.')
+
   if (errors.length > 0) {
     res.json({ errors: errors })
     return
   }
 
-  bcrypt.hash(req.body.password, 10, (err, hash) => {
-
-    const password = req.body.password
-    req.body.password = hash
-
-    let newUser = new User(req.body)
-    newUser.save((err) => {
-      if (err) {
-        res.send(err)
-      } else {
-        let transporter = nodeMailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-          }
-        })
-        let mailOptions = {
-          to: req.body.email,
-          subject: 'Welcome to the white application!',
-          body: `Your login - ${req.body.email}, password - ${password}`
+  let newUser = new User(req.body)
+  newUser.save((err) => {
+    if (err) {
+      res.send(err)
+    } else {
+      let transporter = nodeMailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD
         }
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            return console.log(error)
-          }
-          console.log('Message %s sent: %s', info.messageId, info.response)
-        })
-        res.json({ success: true })
+      })
+      let mailOptions = {
+        to: req.body.email,
+        subject: 'Welcome to the white application!',
+        body: `Your login - ${req.body.email}, password - ${req.body.password}`
       }
-    })
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          return console.log(error)
+        }
+        console.log('Message %s sent: %s', info.messageId, info.response)
+      })
+      res.json({ success: true })
+    }
   })
-
-
 }
+
+async function login (req, res) {
+  const response = res
+  const result = await User.find({ email: req.body.login }, (err, res) => res)
+  if (result.length === 0) {
+    res.json({ error: 'Пользователя не существует.' })
+    return
+  }
+  bcrypt.compare(req.body.password, result[0].password, (err, res) => {
+    if (res) {
+      const payload = { user: req.body.email }
+      const options = { expiresIn: '2d', issuer: 'https://scotch.io' }
+      const secret = process.env.JWT_SECRET
+      const token = jwt.sign(payload, secret, options)
+
+      response.status(200).json({ success: true, token: token })
+    } else {
+      response.json({ error: 'Неверный пароль.' })
+    }
+  })
+}
+
 
 /*
  * GET /user/:id route to retrieve a book given its id.
@@ -100,4 +117,4 @@ function updateUser (req, res) {
 }
 
 //export all the functions
-module.exports = { register, getUser, deleteUser, updateUser }
+module.exports = { register, login, getUser, deleteUser, updateUser }
