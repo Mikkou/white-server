@@ -21,9 +21,7 @@ UserSchema.pre('save', function (next) {
     user.createdAt = new Date()
   }
 
-  if (!user.isNew) {
-    next()
-  } else {
+  if (user.isNew || user.isModified()) {
     bcrypt.hash(user.password, 10, function (err, hash) {
       if (err) {
         console.log('Error hashing password for user', user.name)
@@ -33,6 +31,8 @@ UserSchema.pre('save', function (next) {
         next()
       }
     })
+  } else {
+    next()
   }
 })
 

@@ -5,6 +5,7 @@ const router = Router()
 
 router.post('/v1/register', user.register)
 router.post('/v1/login', user.login)
+router.post('/v1/forgot', user.forgot)
 
 router.get('/v1/user/:id', user.getUser)
 router.delete('/v1/user/:id', user.deleteUser)

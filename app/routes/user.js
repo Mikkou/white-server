@@ -82,6 +82,48 @@ async function login (req, res) {
   })
 }
 
+async function forgot (req, res) {
+  const result = await User.find({ email: req.body.email }, (err, res) => res)
+  if (result.length === 0) {
+    res.json({ error: 'Пользователя не существует.' })
+    return
+  }
+
+  const newPassword = '' + (Math.floor(Math.random() * Math.floor(10000)))
+  User.find({ email: req.body.email }, (err, user) => {
+    user[0].password = newPassword
+    user[0].save((err, user) => {
+      let transporter = nodeMailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD
+        }
+      })
+      let mailOptions = {
+        to: req.body.email,
+        subject: `Your new password - ${newPassword}`,
+        body: `<table>
+                  <tbody>
+                    <tr>
+                      <td>Password - ${newPassword}</td>
+                    </tr>
+                  </tbody>
+                </table>`
+      }
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          return console.log(error)
+        }
+        console.log('Message %s sent: %s', info.messageId, info.response)
+      })
+      res.json({ success: true })
+    })
+  })
+}
+
 
 /*
  * GET /user/:id route to retrieve a book given its id.
@@ -117,4 +159,4 @@ function updateUser (req, res) {
 }
 
 //export all the functions
-module.exports = { register, login, getUser, deleteUser, updateUser }
+module.exports = { register, login, forgot, getUser, deleteUser, updateUser }
